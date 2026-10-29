@@ -1,0 +1,103 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/common/database/prisma/generated"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         Role       @default(USER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  sessions     Session[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Author {
+  id    String @id @default(uuid())
+  name  String @unique
+  books Book[]
+
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "authors_name_trgm_idx")
+  @@map("authors")
+}
+
+model Publisher {
+  id    String @id @default(uuid())
+  name  String @unique
+  books Book[]
+
+  @@map("publishers")
+}
+
+model Genre {
+  id    String @id @default(uuid())
+  name  String @unique
+  books Book[]
+
+  @@map("genres")
+}
+
+model Book {
+  id          String    @id @default(uuid())
+  title       String
+  price       Decimal   @db.Decimal(10, 2)
+  isAvailable Boolean   @default(true)
+  imageUrl    String?
+  authorId    String
+  publisherId String
+  genreId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  author      Author    @relation(fields: [authorId], references: [id])
+  publisher   Publisher @relation(fields: [publisherId], references: [id])
+  genre       Genre     @relation(fields: [genreId], references: [id])
+
+  @@map("books")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

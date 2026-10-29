@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  back:
+    name: Back (NestJS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmpc-back
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: cmpc-back/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      - run: npm run lint
+      - run: npm run test:cov
+      - run: npm run build
+
+  front:
+    name: Front (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmpc-front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: cmpc-front/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:cov
+      - run: npm run build
+
+  docker:
+    name: Imágenes y compose
+    runs-on: ubuntu-latest
+    needs: [back, front]
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp cmpc-back/.env.example cmpc-back/.env
+      - run: cp cmpc-front/.env.example cmpc-front/.env
+      - run: docker compose config --quiet
+      - run: docker compose build

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    env_file: ./cmpc-back/.env
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata18:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./cmpc-back
+      target: build
+    env_file: ./cmpc-back/.env
+    command: >
+      sh -c 'export DATABASE_URL="postgresql://$$POSTGRES_USER:$$POSTGRES_PASSWORD@db:5432/$$POSTGRES_DB?schema=public"
+      && npx prisma migrate deploy && npx prisma db seed'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: ./cmpc-back
+      target: runtime
+    restart: unless-stopped
+    env_file: ./cmpc-back/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    command: >
+      sh -c 'export DATABASE_URL="postgresql://$$POSTGRES_USER:$$POSTGRES_PASSWORD@db:5432/$$POSTGRES_DB?schema=public"
+      && exec node dist/main'
+    ports:
+      - '${API_PORT:-3001}:3001'
+    init: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ./cmpc-front
+      target: runtime
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata18:

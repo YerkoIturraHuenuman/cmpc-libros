@@ -1,0 +1,11 @@
+export const SESSION_REPOSITORY = Symbol('SESSION_REPOSITORY');
+export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
+export const BOOK_REPOSITORY = Symbol('BOOK_REPOSITORY');
+export const CATALOG_REPOSITORY = Symbol('CATALOG_REPOSITORY');
+export const AUDIT_LOG_REPOSITORY = Symbol('AUDIT_LOG_REPOSITORY');
+
+export const PASSWORD_HASHER = Symbol('PASSWORD_HASHER');
+export const TOKEN_SERVICE = Symbol('TOKEN_SERVICE');
+export const FILE_STORAGE = Symbol('FILE_STORAGE');
+export const IMAGE_SANITIZER = Symbol('IMAGE_SANITIZER');
+export const CSV_EXPORTER = Symbol('CSV_EXPORTER');
